@@ -1,0 +1,18 @@
+{
+  "subscribers": [
+    {
+      "topic": "/chatter",
+      "type": "std_msgs/msg/String",
+      "qos": "default"
+    }
+  ],
+  "tf_settings": {
+    "enabled": true,
+    "global_frame": "map",
+    "robot_frame": "base_link",
+    "fallback_to_odom": true
+  },
+  "grpc_settings": {
+    "server_address": "localhost:50051"
+  }
+}

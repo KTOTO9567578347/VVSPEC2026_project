@@ -1,0 +1,15 @@
+services:
+  ros:
+    build:
+      dockerfile: Dockerfile
+      context: .
+      x-bake:
+        platforms:
+          - linux/arm64
+          - linux/amd64
+        cache-from:
+          - type=registry,ref=registry.robotics-lab.ru/ros-demo:cache-arm64
+          - type=registry,ref=registry.robotics-lab.ru/ros-demo:cache-amd64
+        cache-to:
+          # - type=registry,ref=registry.robotics-lab.ru/ros-demo:cache-arm64
+          # - type=registry,ref=registry.robotics-lab.ru/ros-demo:cache-amd64

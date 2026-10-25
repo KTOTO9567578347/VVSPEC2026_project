@@ -1,0 +1,12 @@
+launch:
+  - arg: { name: use_slam, default: "False" }    
+
+  - include:
+      file: $(find-pkg-share foxglove_bridge)/launch/foxglove_bridge_launch.xml
+      arg:
+      - { name: "use_sim_time", value: "true" }
+  - include:
+      file: $(find-pkg-share main)/launch/bringup_launch.py
+      arg:
+      - { name: map, value: "$(find-pkg-share main)/maps/maze.yaml" }
+      - { name: use_slam, value: $(var use_slam) }

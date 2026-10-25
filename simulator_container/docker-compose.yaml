@@ -1,0 +1,10 @@
+services:
+  ros:
+    build:
+      context: .
+      dockerfile: dockerfile
+    network_mode: "host"
+    restart: unless-stopped
+    container_name: ros
+    ports: [8765:8765]
+    volumes: [".:/src"]

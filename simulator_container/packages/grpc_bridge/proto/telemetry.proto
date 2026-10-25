@@ -1,0 +1,44 @@
+syntax = "proto3";
+
+package robot_telemetry;
+
+enum TelemetryStatus {
+  OK = 0;
+  NOTF = 1;
+  ERROR = 2;
+}
+
+message MotionTwist {
+  double linear_x = 1;
+  double angular_z = 2;
+}
+
+message RobotPose {
+  double x = 1;
+  double y = 2;
+  double yaw = 3;
+}
+
+// Отдельная точка телеметрии в истории
+message TelemetryPoint {
+  int64 timestamp_ms = 1;
+  TelemetryStatus status = 2;
+  string status_message = 3;
+  RobotPose pose = 4;
+  MotionTwist cmd_vel = 5;
+  MotionTwist odom_vel = 6;
+}
+
+// Батч, который полетит на сервер раз в N секунд
+message TelemetryBatchRequest {
+  string robot_id = 1;                 // Идентификатор робота
+  repeated TelemetryPoint points = 2;  // Массив точек истории
+}
+
+message TelemetryResponse {
+  bool success = 1;
+}
+
+service TelemetryService {
+  rpc SendTelemetryBatch (TelemetryBatchRequest) returns (TelemetryResponse);
+}

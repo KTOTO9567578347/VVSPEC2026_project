@@ -1,0 +1,28 @@
+diff --git a/loopback_simulator.py b/loopback_simulator.py
+index 76cf86f..1296e92 100644
+--- a/loopback_simulator.py
++++ b/loopback_simulator.py
+@@ -170,6 +170,13 @@ class LoopbackSimulator(Node):
+         self.tf_broadcaster.sendTransform(self.t_odom_to_base_link)
+         if self.mat_base_to_laser is None:
+             self.getBaseToLaserTf()
++        
++        if self.initial_pose is None:
++            msg = PoseWithCovarianceStamped()
++            msg.header.stamp = self.get_clock().now().to_msg()
++            msg.header.frame_id = self.base_frame_id
++            msg.pose.pose.orientation.w = 1.0
++            self.initialPoseCallback(msg)
+ 
+     def clockTimerCallback(self):
+         msg = Clock()
+@@ -236,7 +243,8 @@ class LoopbackSimulator(Node):
+         one_sec = Duration(seconds=1)
+         if self.curr_cmd_vel is None or self.get_clock().now() - self.curr_cmd_vel_time > one_sec:
+             self.publishTransforms(self.t_map_to_odom, self.t_odom_to_base_link)
+-            self.curr_cmd_vel = None
++            self.curr_cmd_vel = Twist()
++            self.publishOdometry(self.t_odom_to_base_link)
+             return
+ 
+         # Update odom->base_link from cmd_vel
