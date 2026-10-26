@@ -1,0 +1,9 @@
+fastapi>=0.115
+uvicorn[standard]>=0.30
+SQLAlchemy>=2.0.30
+psycopg[binary]>=3.2
+pydantic>=2.7
+pydantic-settings>=2.3
+# версии не ниже тех, которыми сгенерированы стабы в app/grpc_gen
+grpcio>=1.85.1
+protobuf>=7.35.1
