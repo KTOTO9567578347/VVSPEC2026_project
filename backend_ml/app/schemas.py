@@ -75,6 +75,36 @@ class Trajectory(BaseModel):
     points: list[TrajectoryPoint]
 
 
+class TrackingError(BaseModel):
+    rmse: float
+    mae: float
+    max_abs: float
+
+
+class Metrics(BaseModel):
+    robot_id: str
+    from_ms: int
+    to_ms: int
+    samples: int
+    duration_s: float
+    status_counts: dict[str, int]
+    tf_availability: float = Field(description="доля точек со статусом OK, 0..1")
+    distance_m: float = Field(description="пройденный путь по позе")
+    displacement_m: float = Field(description="расстояние между первой и последней позой")
+    path_efficiency: float | None = Field(description="displacement / distance")
+    total_rotation_rad: float
+    avg_speed_mps: float = Field(description="средняя |odom.linear_x|")
+    max_speed_mps: float
+    path_speed_mps: float = Field(description="distance / duration")
+    avg_angular_speed_rps: float
+    idle_ratio: float = Field(description="доля времени, когда команда на движение нулевая")
+    moving_ratio: float = Field(description="доля времени, когда робот реально движется")
+    linear_tracking: TrackingError = Field(description="ошибка cmd_vel.linear_x - odom_vel.linear_x")
+    angular_tracking: TrackingError = Field(description="ошибка cmd_vel.angular_z - odom_vel.angular_z")
+    gaps: int = Field(description="сколько раз данные пропадали дольше max_gap_ms")
+    gap_time_s: float
+
+
 class Health(BaseModel):
     status: Literal["ok", "degraded"]
     database: bool
