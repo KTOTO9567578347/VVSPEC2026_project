@@ -108,3 +108,82 @@ def compute_metrics(points: Sequence[Any], idle_eps: float = 0.01, max_gap_ms: i
         "gaps": gaps,
         "gap_time_s": gap_time_ms / 1000.0,
     }
+
+
+def compute_timeseries(
+    points: Sequence[Any], from_ms: int, bucket_ms: int, idle_eps: float = 0.01, max_gap_ms: int = 2000
+) -> list[dict[str, Any]]:
+    """Метрики по интервалам фиксированной длины — для графиков. Пустые интервалы пропускаются."""
+    buckets: dict[int, list[Any]] = {}
+    for p in points:
+        key = from_ms + ((p.timestamp_ms - from_ms) // bucket_ms) * bucket_ms
+        buckets.setdefault(key, []).append(p)
+
+    out = []
+    for t in sorted(buckets):
+        chunk = buckets[t]
+        m = compute_metrics(chunk, idle_eps=idle_eps, max_gap_ms=max_gap_ms)
+        out.append(
+            {
+                "t": t,
+                "samples": m["samples"],
+                "tf_availability": m["tf_availability"],
+                "distance_m": m["distance_m"],
+                "avg_speed_mps": m["avg_speed_mps"],
+                "avg_cmd_speed_mps": sum(abs(p.cmd_linear_x) for p in chunk) / len(chunk),
+                "avg_angular_speed_rps": m["avg_angular_speed_rps"],
+                "linear_rmse": m["linear_tracking"]["rmse"],
+                "angular_rmse": m["angular_tracking"]["rmse"],
+            }
+        )
+    return out
+
+
+def detect_events(points: Sequence[Any], max_gap_ms: int = 2000) -> list[dict[str, Any]]:
+    """Непрерывные участки со статусом NOTF/ERROR и разрывы в данных (GAP)."""
+    events: list[dict[str, Any]] = []
+    current: dict[str, Any] | None = None
+
+    def close(ev):
+        ev["duration_s"] = (ev["end_ms"] - ev["start_ms"]) / 1000.0
+        events.append(ev)
+
+    prev = None
+    for p in points:
+        if prev is not None and p.timestamp_ms - prev.timestamp_ms > max_gap_ms:
+            if current is not None:
+                close(current)
+                current = None
+            close(
+                {
+                    "type": "GAP",
+                    "start_ms": prev.timestamp_ms,
+                    "end_ms": p.timestamp_ms,
+                    "samples": 0,
+                    "message": None,
+                }
+            )
+
+        if p.status == "OK":
+            if current is not None:
+                close(current)
+                current = None
+        elif current is not None and current["type"] == p.status:
+            current["end_ms"] = p.timestamp_ms
+            current["samples"] += 1
+        else:
+            if current is not None:
+                close(current)
+            current = {
+                "type": p.status,
+                "start_ms": p.timestamp_ms,
+                "end_ms": p.timestamp_ms,
+                "samples": 1,
+                "message": p.status_message,
+            }
+        prev = p
+
+    if current is not None:
+        close(current)
+    events.sort(key=lambda e: (e["start_ms"], e["type"] != "GAP"))
+    return events

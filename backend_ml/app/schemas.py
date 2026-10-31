@@ -105,6 +105,42 @@ class Metrics(BaseModel):
     gap_time_s: float
 
 
+class MetricsBucket(BaseModel):
+    t: int = Field(description="начало интервала, мс")
+    samples: int
+    tf_availability: float
+    distance_m: float
+    avg_speed_mps: float
+    avg_cmd_speed_mps: float
+    avg_angular_speed_rps: float
+    linear_rmse: float
+    angular_rmse: float
+
+
+class MetricsTimeseries(BaseModel):
+    robot_id: str
+    from_ms: int
+    to_ms: int
+    bucket_s: float
+    buckets: list[MetricsBucket]
+
+
+class Event(BaseModel):
+    type: Literal["NOTF", "ERROR", "GAP"]
+    start_ms: int
+    end_ms: int
+    duration_s: float
+    samples: int
+    message: str | None = None
+
+
+class EventsOut(BaseModel):
+    robot_id: str
+    from_ms: int
+    to_ms: int
+    events: list[Event]
+
+
 class Health(BaseModel):
     status: Literal["ok", "degraded"]
     database: bool
