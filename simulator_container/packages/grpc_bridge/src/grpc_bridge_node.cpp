@@ -54,6 +54,8 @@ class grpc_subscriber: public rclcpp::Node{
         std::string global_frame_ = "map";
         std::string robot_frame_ = "base_link";
 
+        std::string robot_id_ = "unnamed";
+
         std::vector<std::shared_ptr<rclcpp::SubscriptionBase>> subscribers_;
         using SubscriberCreator = std::function<void(const std::string&, const rclcpp::QoS&)>;
 
@@ -123,7 +125,7 @@ class grpc_subscriber: public rclcpp::Node{
 
         void slow_send_timer_callback() {
             robot_telemetry::TelemetryBatchRequest batch_request;
-            batch_request.set_robot_id("robot_v1_simulation");
+            batch_request.set_robot_id(robot_id_);
 
             {
                 std::lock_guard<std::mutex> lock(batch_mutex_);
@@ -205,6 +207,13 @@ class grpc_subscriber: public rclcpp::Node{
                 grpc_server_address_ = config["grpc_settings"].value("server_address", "localhost:50051");
                 channel_ = grpc::CreateChannel(grpc_server_address_, grpc::InsecureChannelCredentials());
                 grpc_stub_ = robot_telemetry::TelemetryService::NewStub(channel_);
+            }
+
+            if (config.contains("robot_id")) {
+                robot_id_ = config["robot_id"];
+            }else{
+                RCLCPP_ERROR(this->get_logger(), "Не задан ID робота! ");
+                throw std::runtime_error("Невозможно наладить GRPC-стрим без заданного ID робота!");
             }
         }
 };

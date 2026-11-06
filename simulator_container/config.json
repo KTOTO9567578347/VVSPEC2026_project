@@ -14,5 +14,6 @@
   },
   "grpc_settings": {
     "server_address": "localhost:50051"
-  }
+  },
+  "robot_id": "robot_1_sim"
 }
