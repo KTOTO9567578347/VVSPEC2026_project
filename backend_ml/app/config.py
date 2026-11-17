@@ -2,7 +2,6 @@ from functools import lru_cache
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-
 class Settings(BaseSettings):
     """Настройки бэкенда. Любое поле можно переопределить переменной окружения
     с префиксом BACKEND_ (например, BACKEND_DATABASE_URL) или через файл .env."""

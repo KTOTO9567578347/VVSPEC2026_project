@@ -25,6 +25,23 @@ services:
     ports:
       - "8000:8000"
       - "50051:50051"
+    volumes:
+      - ".:/srv"
+
+  ml-worker:
+    build:
+      context: ../ML
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_started
+    environment:
+      BACKEND_API_URL: http://backend:8000
+      POLL_INTERVAL_S: "${ML_POLL_INTERVAL_S:-30}"
+      ANALYSIS_WINDOW_S: "${ML_ANALYSIS_WINDOW_S:-600}"
+      MAX_POINTS: "${ML_MAX_POINTS:-50000}"
+      ANOMALY_THRESHOLD: "${ML_ANOMALY_THRESHOLD:-0.6}"
+      CHECK_IDLE: "${ML_CHECK_IDLE:-false}"
 
 volumes:
   pgdata:

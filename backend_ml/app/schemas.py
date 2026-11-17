@@ -1,6 +1,6 @@
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 Status = Literal["OK", "NOTF", "ERROR"]
 
@@ -50,6 +50,39 @@ class RobotOut(BaseModel):
     total_points: int
     total_batches: int
     last_point: PointOut | None = None
+
+
+class AnomalyCreate(BaseModel):
+    type: str = Field(min_length=1, max_length=64)
+    start_timestamp_ms: int
+    end_timestamp_ms: int
+    confidence: float = Field(ge=0, le=1)
+
+    @field_validator("type")
+    @classmethod
+    def normalize_type(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("type must not be blank")
+        return normalized
+
+    @model_validator(mode="after")
+    def validate_timestamp_range(self):
+        if self.start_timestamp_ms > self.end_timestamp_ms:
+            raise ValueError("start_timestamp_ms must be <= end_timestamp_ms")
+        return self
+
+
+class AnomalyOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    robot_id: str
+    type: str = Field(validation_alias="anomaly_type")
+    start_timestamp_ms: int
+    end_timestamp_ms: int
+    confidence: float
+    is_fixed: bool
 
 
 class TelemetryPage(BaseModel):

@@ -75,9 +75,23 @@ pytest
 | GET | `/api/robots/{id}/metrics` | сводные метрики за диапазон |
 | GET | `/api/robots/{id}/metrics/timeseries` | метрики по интервалам `bucket_s` — для графиков |
 | GET | `/api/robots/{id}/events` | участки без TF (`NOTF`), ошибки (`ERROR`), разрывы связи (`GAP`) |
+| GET | `/api/anomalies` | сохранённые аномалии, фильтры `robot_id`, `is_fixed` |
+| POST | `/api/robots/{id}/anomalies` | добавить аномалию или продлить активную того же типа |
+| DELETE | `/api/anomalies/{id}` | удалить аномалию |
 | WS | `/ws/live?robot_id=...` | новые точки на каждый батч; без `robot_id` — от всех роботов |
 
 Общие query-параметры для диапазона: `from_ms`, `to_ms`, `window_s`.
+
+### Аномалии
+
+Для создания/продления передаются `type`, `start_timestamp_ms`,
+`end_timestamp_ms` (unix-время в миллисекундах, как `timestamp_ms` точки
+телеметрии) и `confidence` (от 0 до 1). Границы хранятся непосредственно как
+timestamp, без привязки к ID точки.
+Активная аномалия (`is_fixed=false`) уникальна для сочетания робота и типа:
+повторный POST расширяет её timestamp-интервал и заменяет `confidence`
+значением из последнего запроса. Для нового сочетания робота и типа создаётся
+запись. Удаление выполняется по `id`.
 
 ### Точка телеметрии
 
@@ -129,7 +143,7 @@ app/
   __main__.py      запуск: python -m app (HTTP + gRPC в одном процессе)
   main.py          сборка FastAPI-приложения, старт/стоп gRPC-сервера
   config.py        настройки (env BACKEND_*)
-  db.py, models.py SQLAlchemy: robots, telemetry_points, telemetry_batches
+  db.py, models.py SQLAlchemy: robots, telemetry_points, telemetry_batches, anomalies
   grpc_server.py   реализация TelemetryService.SendTelemetryBatch
   grpc_gen/        сгенерированные стабы из telemetry.proto
   services/        запись батчей, запросы к БД, расчёт метрик, live-рассылка
@@ -140,5 +154,9 @@ scripts/
 tests/
 ```
 
-Таблицы создаются автоматически при старте (`create_all`), миграций пока нет —
-если поменяется схема, проще пересоздать базу (`docker compose down -v`).
+Таблицы создаются автоматически при старте (`create_all`). Миграций пока нет;
+`create_all` создаёт новую таблицу `anomalies` в существующей базе, но не
+изменяет уже существующие таблицы. Если таблица `anomalies` уже была создана
+предыдущей версией приложения с колонками `start_telemetry_point_id` и
+`end_telemetry_point_id`, сначала примените PostgreSQL-скрипт
+`scripts/migrate_anomalies_to_timestamps.sql` из каталога `backend_ml`.

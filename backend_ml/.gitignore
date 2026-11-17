@@ -7,3 +7,7 @@ venv/
 *.db
 *.db-wal
 *.db-shm
+
+#IDE
+.local_packages/
+.vscode/
