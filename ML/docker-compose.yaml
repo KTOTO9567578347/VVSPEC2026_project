@@ -1,0 +1,15 @@
+services:
+  ml-worker:
+    build:
+      context: .
+    restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      BACKEND_API_URL: "${BACKEND_API_URL:-http://host.docker.internal:8000}"
+      POLL_INTERVAL_S: "${POLL_INTERVAL_S:-30}"
+      ANALYSIS_WINDOW_S: "${ANALYSIS_WINDOW_S:-600}"
+      MAX_POINTS: "${MAX_POINTS:-50000}"
+      REQUEST_TIMEOUT_S: "${REQUEST_TIMEOUT_S:-15}"
+      ANOMALY_THRESHOLD: "${ANOMALY_THRESHOLD:-0.6}"
+      CHECK_IDLE: "${CHECK_IDLE:-false}"

@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app import __version__
-from app.api import health, live, metrics, robots, telemetry
+from app.api import anomalies, health, live, metrics, robots, telemetry
 from app.config import Settings, get_settings
 from app.db import Database
 from app.grpc_server import create_grpc_server
@@ -64,6 +64,7 @@ def create_app(
     )
 
     app.include_router(health.router)
+    app.include_router(anomalies.router)
     app.include_router(robots.router)
     app.include_router(telemetry.router)
     app.include_router(metrics.router)

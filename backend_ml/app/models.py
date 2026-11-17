@@ -1,4 +1,14 @@
-from sqlalchemy import BigInteger, Float, ForeignKey, Index, Integer, String, Text
+from sqlalchemy import (
+    BigInteger,
+    CheckConstraint,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    text,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db import Base
@@ -59,3 +69,30 @@ class TelemetryPoint(Base):
     odom_angular_z: Mapped[float] = mapped_column(Float, default=0.0)
 
     __table_args__ = (Index("ix_points_robot_ts", "robot_id", "timestamp_ms"),)
+
+
+class Anomaly(Base):
+    __tablename__ = "anomalies"
+
+    id: Mapped[int] = mapped_column(BigIntPK, primary_key=True, autoincrement=True)
+    robot_id: Mapped[str] = mapped_column(ForeignKey("robots.id", ondelete="CASCADE"))
+    anomaly_type: Mapped[str] = mapped_column("type", String(64))
+    start_timestamp_ms: Mapped[int] = mapped_column(BigInteger)
+    end_timestamp_ms: Mapped[int] = mapped_column(BigInteger)
+    confidence: Mapped[float] = mapped_column(Float)
+    is_fixed: Mapped[bool] = mapped_column(default=False)
+
+    __table_args__ = (
+        CheckConstraint(
+            "start_timestamp_ms <= end_timestamp_ms",
+            name="ck_anomalies_timestamp_range",
+        ),
+        Index(
+            "uq_anomalies_active_robot_type",
+            "robot_id",
+            "type",
+            unique=True,
+            postgresql_where=text("is_fixed = false"),
+            sqlite_where=text("is_fixed = false"),
+        ),
+    )

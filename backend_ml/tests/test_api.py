@@ -1,7 +1,9 @@
 import time
 
 import pytest
+from sqlalchemy import select
 
+from app.models import Anomaly
 from app.services.ingest import ingest_batch, now_ms
 from tests.conftest import make_point
 
@@ -106,6 +108,120 @@ def test_delete_robot(client, seeded):
     assert client.delete("/api/robots/r1").status_code == 204
     assert client.get("/api/robots/r1").status_code == 404
     assert client.delete("/api/robots/r1").status_code == 404
+
+
+def test_add_anomaly_extends_active_by_type(client, seeded):
+    url = "/api/robots/r1/anomalies"
+    first = client.post(
+        url,
+        json={
+            "type": "OBSTACLE",
+            "start_timestamp_ms": seeded["t0"] + 200,
+            "end_timestamp_ms": seeded["t0"] + 400,
+            "confidence": 0.7,
+        },
+    )
+    assert first.status_code == 200
+    initial = first.json()
+    assert initial["is_fixed"] is False
+    assert initial["start_timestamp_ms"] == seeded["t0"] + 200
+    assert initial["end_timestamp_ms"] == seeded["t0"] + 400
+
+    extended = client.post(
+        url,
+        json={
+            "type": "OBSTACLE",
+            "start_timestamp_ms": seeded["t0"] + 100,
+            "end_timestamp_ms": seeded["t0"] + 600,
+            "confidence": 0.9,
+        },
+    )
+    assert extended.status_code == 200
+    result = extended.json()
+    assert result["id"] == initial["id"]
+    assert result["start_timestamp_ms"] == seeded["t0"] + 100
+    assert result["end_timestamp_ms"] == seeded["t0"] + 600
+    assert result["confidence"] == pytest.approx(0.9)
+    with client.app.state.db.session() as session:
+        assert len(list(session.scalars(select(Anomaly)))) == 1
+
+
+def test_anomaly_types_are_separate_and_delete(client, seeded):
+    url = "/api/robots/r1/anomalies"
+    first = client.post(
+        url,
+        json={
+            "type": "OBSTACLE",
+            "start_timestamp_ms": seeded["t0"],
+            "end_timestamp_ms": seeded["t0"],
+            "confidence": 0.5,
+        },
+    )
+    second = client.post(
+        url,
+        json={
+            "type": "LOCALIZATION",
+            "start_timestamp_ms": seeded["t0"],
+            "end_timestamp_ms": seeded["t0"],
+            "confidence": 0.8,
+        },
+    )
+    assert first.status_code == second.status_code == 200
+    assert first.json()["id"] != second.json()["id"]
+
+    assert client.delete(f"/api/anomalies/{first.json()['id']}").status_code == 204
+    assert client.delete(f"/api/anomalies/{first.json()['id']}").status_code == 404
+
+
+def test_list_anomalies_with_filters(client, seeded):
+    url = "/api/robots/r1/anomalies"
+    active = client.post(
+        url,
+        json={
+            "type": "OBSTACLE",
+            "start_timestamp_ms": seeded["t0"],
+            "end_timestamp_ms": seeded["t0"] + 100,
+            "confidence": 0.8,
+        },
+    ).json()
+    fixed = client.post(
+        url,
+        json={
+            "type": "LOCALIZATION",
+            "start_timestamp_ms": seeded["t0"] + 200,
+            "end_timestamp_ms": seeded["t0"] + 300,
+            "confidence": 0.9,
+        },
+    ).json()
+    with client.app.state.db.session() as session:
+        anomaly = session.get(Anomaly, fixed["id"])
+        anomaly.is_fixed = True
+
+    all_anomalies = client.get("/api/anomalies")
+    assert all_anomalies.status_code == 200
+    assert [row["id"] for row in all_anomalies.json()] == [fixed["id"], active["id"]]
+
+    robot_anomalies = client.get("/api/anomalies", params={"robot_id": "r1"})
+    assert len(robot_anomalies.json()) == 2
+    active_anomalies = client.get("/api/anomalies", params={"is_fixed": "false"})
+    assert [row["id"] for row in active_anomalies.json()] == [active["id"]]
+    fixed_anomalies = client.get(
+        "/api/anomalies", params={"robot_id": "r1", "is_fixed": "true"}
+    )
+    assert [row["id"] for row in fixed_anomalies.json()] == [fixed["id"]]
+
+
+def test_add_anomaly_rejects_reversed_timestamp_range(client, seeded):
+    response = client.post(
+        "/api/robots/r1/anomalies",
+        json={
+            "type": "OBSTACLE",
+            "start_timestamp_ms": seeded["t0"] + 100,
+            "end_timestamp_ms": seeded["t0"],
+            "confidence": 0.5,
+        },
+    )
+    assert response.status_code == 422
 
 
 def test_live_websocket(client, seeded):
