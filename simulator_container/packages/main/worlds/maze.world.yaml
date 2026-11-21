@@ -1,0 +1,13 @@
+properties:
+  velocity_iterations: 10
+  position_iterations: 10
+
+layers:
+  - name: static
+    map: "../maps/maze.yaml"
+    color: [1, 1, 1, 1]
+
+models:
+  - model: "../worlds/robot.model.yaml"
+    name: robot
+    pose: [0.0, 0.0, 0.0]

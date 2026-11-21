@@ -40,7 +40,7 @@ RUN apt update && \
     ros-$ROS_DISTRO-nav2-planner \
     ros-$ROS_DISTRO-nav2-navfn-planner \
     ros-$ROS_DISTRO-nav2-regulated-pure-pursuit-controller \
-    ros-$ROS_DISTRO-nav2-loopback-sim \
+    ros-$ROS_DISTRO-nav2-amcl \
     ros-$ROS_DISTRO-nav2-map-server \
     && rm -rf /var/lib/apt/lists/*
 
@@ -70,27 +70,27 @@ RUN . $ROS_ROOT/setup.sh \
     && rm -rf /tmp/* \
     && rm -rf /var/lib/apt/lists/*
 
-# Patch nav2 loopback simulator
-WORKDIR /tmp/nav2-loopback-sim-patch
-ADD docker/nav2-loopback-sim.patch .
-RUN patch -p1 -i nav2-loopback-sim.patch \
-    $(find /opt/ros/$ROS_DISTRO -name loopback_simulator.py)
-
 # ==============================================================================
 # Сборка gRPC и Protobuf из исходников
 # ==============================================================================
 # 1. Устанавливаем системные зависимости сборщика, чтобы ускорить компиляцию в 3 раза
 RUN apt update && apt install -y \
+    nlohmann-json3-dev \
     build-essential \
     cmake \
     git \
+    libopencv-dev \
+    liblua5.1-0-dev \
+    libboost-dev \
+    libboost-date-time-dev \
+    libboost-filesystem-dev \
+    libboost-system-dev \
+    python3-colcon-common-extensions \
     libssl-dev \
     zlib1g-dev \
     libc-ares-dev \
     libre2-dev \
     && rm -rf /var/lib/apt/lists/*
-
-RUN sudo apt update && sudo apt install -y nlohmann-json3-dev;
 
 # 2. Скачиваем, собираем и очищаем всё строго в ОДНОМ RUN слое
 RUN git clone --recurse-submodules -b v1.66.0 --depth 1 --shallow-submodules https://github.com/grpc/grpc /tmp/grpc-build \
@@ -115,6 +115,35 @@ RUN git clone --recurse-submodules -b v1.66.0 --depth 1 --shallow-submodules htt
     && rm -rf /tmp/grpc-build \
     && ldconfig
 # ==============================================================================
+
+# Build the Jazzy-compatible ROS 2 Flatland integration from OpenRobOps.
+# Its pinned submodule points to the official avidbots/flatland ROS 2 branch.
+RUN git clone https://github.com/OpenRobOps/sim-flatland.git /tmp/sim-flatland \
+    && git -C /tmp/sim-flatland fetch --depth 1 origin 0c4d0f441947dc1624efd132539d7b16158e1e31 \
+    && git -C /tmp/sim-flatland checkout --detach FETCH_HEAD \
+    && git -C /tmp/sim-flatland submodule update --init --depth 1 \
+    && cd /tmp/sim-flatland/third_party/flatland \
+    && for patch in /tmp/sim-flatland/patches/flatland/000[1-9]-*.patch /tmp/sim-flatland/patches/flatland/0010-*.patch /tmp/sim-flatland/patches/flatland/0013-*.patch /tmp/sim-flatland/patches/flatland/0016-*.patch; do \
+        git apply --whitespace=nowarn "$patch"; \
+    done \
+    && rm -rf .git \
+    && cd /tmp \
+    && git clone --branch v2.3.1 --depth 1 https://github.com/erincatto/box2d.git \
+    && cd /tmp/box2d/Box2D/Build \
+    && cmake -DBOX2D_BUILD_EXAMPLES=OFF -DBOX2D_BUILD_TESTS=OFF \
+        -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+        -DCMAKE_INSTALL_PREFIX=/usr/local .. \
+    && make -j$(nproc) \
+    && make install \
+    && cd /tmp/sim-flatland/third_party/flatland \
+    && . $ROS_ROOT/setup.sh \
+    && rosdep update \
+    && rosdep install --from-paths . --ignore-src -r -y --skip-keys box2d-dev \
+    && colcon build --merge-install --install-base /opt/ros/$ROS_DISTRO \
+        --packages-select flatland_msgs flatland_server flatland_plugins \
+        --cmake-args -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF \
+    && rm -rf /tmp/sim-flatland /tmp/box2d \
+    && rm -rf /var/lib/apt/lists/*
 
 # Setup .bashrc
 WORKDIR /src

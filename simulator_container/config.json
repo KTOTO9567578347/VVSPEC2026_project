@@ -1,8 +1,13 @@
 {
   "subscribers": [
     {
-      "topic": "/chatter",
-      "type": "std_msgs/msg/String",
+      "topic": "/odom",
+      "type": "nav_msgs/msg/Odometry",
+      "qos": "default"
+    },
+    {
+      "topic": "/cmd_vel",
+      "type": "geometry_msgs/msg/Twist",
       "qos": "default"
     }
   ],

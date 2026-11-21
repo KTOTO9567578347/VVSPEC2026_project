@@ -40,12 +40,15 @@ add_executable(grpc_bridge_node
   ${GRPC_SRCS}
 )
 
-# 2. РЕШЕНИЕ: Просто явно говорим компилятору заглядывать в системную папку include,
-# где и лежит наш nlohmann_json после установки через package.xml!
+find_package(nlohmann_json REQUIRED)
+
 target_include_directories(grpc_bridge_node PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
-  /usr/include # <-- Системный путь, где гарантированно лежит nlohmann/json.hpp
+)
+
+target_link_libraries(grpc_bridge_node
+  nlohmann_json::nlohmann_json
 )
 
 target_compile_features(grpc_bridge_node PUBLIC c_std_99 cxx_std_17)

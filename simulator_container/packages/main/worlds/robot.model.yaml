@@ -1,0 +1,39 @@
+bodies:
+  - name: base_link
+    pose: [0, 0, 0]
+    type: dynamic
+    color: [0, 0, 1, 1]
+    footprints:
+      - type: circle
+        radius: 0.22
+        density: 1.0
+        layers: ["all"]
+    linear_damping: 5.0
+    angular_damping: 5.0
+
+plugins:
+  - type: DiffDrive
+    name: diff_drive
+    body: base_link
+    odom_frame_id: odom
+    twist_sub: cmd_vel
+    odom_pub: odom
+    enable_odom_pub: true
+    pub_rate: 20.0
+
+  - type: Laser
+    name: laser
+    body: base_link
+    frame: laser_link
+    topic: scan
+    broadcast_tf: false
+    origin: [0, 0, 0]
+    range: 10.0
+    angle: {min: -3.14159, max: 3.14159, increment: 0.02617}
+    noise_std_dev: 0.0
+    update_rate: 20.0
+
+  - type: ModelTfPublisher
+    name: tf_publisher
+    publish_tf_world: false
+    update_rate: 20.0

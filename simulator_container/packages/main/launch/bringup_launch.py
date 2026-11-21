@@ -154,13 +154,14 @@ def generate_launch_description():
         ]
     )
 
-    loopback_sim_cmd = IncludeLaunchDescription(
+    flatland_sim_cmd = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
-            os.path.join(launch_dir, 'loopback_sim_launch.py')
+            os.path.join(launch_dir, 'flatland_sim_launch.py')
         ),
         launch_arguments={
-            'params_file': params_file,
+            'world_path': os.path.join(bringup_dir, 'worlds', 'maze.world.yaml'),
             'use_slam': use_slam,
+            'use_sim_time': use_sim_time,
         }.items(),
     )
 
@@ -189,6 +190,15 @@ def generate_launch_description():
                 parameters=[configured_params, {'yaml_filename': map_yaml_file}],
                 remappings=remappings + [('map', '/map/sim')],
             ),
+            Node(
+                condition=IfCondition(PythonExpression(['not ', use_slam])),
+                package='nav2_amcl',
+                executable='amcl',
+                name='amcl',
+                output='screen',
+                parameters=[configured_params],
+                remappings=remappings,
+            ),
             IncludeLaunchDescription(
                 PythonLaunchDescriptionSource(slam_launch_path),
                 condition=IfCondition(use_slam),
@@ -205,6 +215,16 @@ def generate_launch_description():
                 parameters=[
                     configured_params,
                     {'autostart': autostart}, {'node_names': ['map_server']}],
+            ),
+            Node(
+                condition=IfCondition(PythonExpression(['not ', use_slam])),
+                package='nav2_lifecycle_manager',
+                executable='lifecycle_manager',
+                name='lifecycle_manager_amcl',
+                output='screen',
+                parameters=[
+                    configured_params,
+                    {'autostart': autostart}, {'node_names': ['amcl']}],
             ),
         ]
     )
@@ -229,7 +249,7 @@ def generate_launch_description():
 
     # Add the actions to launch all of the navigation nodes
     ld.add_action(start_map_server)
-    ld.add_action(loopback_sim_cmd)
+    ld.add_action(flatland_sim_cmd)
     ld.add_action(bringup_cmd_group)
 
     return ld
