@@ -8,6 +8,6 @@ layers:
     color: [1, 1, 1, 1]
 
 models:
-  - model: "../worlds/robot.model.yaml"
+  - model: "robot.model.yaml"
     name: robot
     pose: [0.0, 0.0, 0.0]

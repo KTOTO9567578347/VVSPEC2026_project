@@ -9,14 +9,14 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
+find_package(geometry_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
+find_package(nav_msgs REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
+find_package(nlohmann_json REQUIRED)
 find_package(Protobuf REQUIRED)
 find_package(gRPC REQUIRED)
-find_package(nav_msgs REQUIRED)
-
-# nlohmann_json ОТСЮДА ПОЛНОСТЬЮ УБРАЛИ. Больше никаких find_package для него.
 
 set(PROTO_FILE "proto/telemetry.proto")
 
@@ -34,38 +34,32 @@ add_custom_command(
     DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/${PROTO_FILE}"
 )
 
-add_executable(grpc_bridge_node 
+add_executable(grpc_bridge_node
   src/grpc_bridge_node.cpp
   ${PROTO_SRCS}
   ${GRPC_SRCS}
 )
-
-find_package(nlohmann_json REQUIRED)
 
 target_include_directories(grpc_bridge_node PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
 )
 
-target_link_libraries(grpc_bridge_node
-  nlohmann_json::nlohmann_json
-)
-
 target_compile_features(grpc_bridge_node PUBLIC c_std_99 cxx_std_17)
 
-# Передаем в ament только чистокровные ROS-пакеты
 ament_target_dependencies(
   grpc_bridge_node
-  nav_msgs
   "rclcpp"
   "std_msgs"
+  "geometry_msgs"
   "sensor_msgs"
+  "nav_msgs"
   "tf2_ros"
   "tf2_geometry_msgs"
 )
 
-# Линкуем только gRPC и Protobuf. JSON линковать не надо (он header-only)
 target_link_libraries(grpc_bridge_node
+  nlohmann_json::nlohmann_json
   gRPC::grpc++
   ${Protobuf_LIBRARIES}
   utf8_validity

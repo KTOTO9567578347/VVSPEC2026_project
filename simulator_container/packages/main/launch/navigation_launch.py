@@ -9,6 +9,7 @@ from launch.substitutions import LaunchConfiguration, PythonExpression
 from launch_ros.actions import LoadComposableNodes, SetParameter
 from launch_ros.actions import Node
 from launch_ros.descriptions import ComposableNode, ParameterFile
+from launch_ros.parameter_descriptions import ParameterValue
 from nav2_common.launch import RewrittenYaml
 
 
@@ -42,7 +43,10 @@ def generate_launch_description():
     remappings = [('/tf', 'tf'), ('/tf_static', 'tf_static')]
 
     # Create our own temporary YAML files that include substitutions
-    param_substitutions = {'autostart': autostart}
+    param_substitutions = {
+        'use_sim_time': use_sim_time,
+        'autostart': autostart,
+    }
 
     configured_params = ParameterFile(
         RewrittenYaml(
@@ -64,7 +68,7 @@ def generate_launch_description():
 
     declare_use_sim_time_cmd = DeclareLaunchArgument(
         'use_sim_time',
-        default_value='false',
+        default_value='true',
         description='Use simulation (Gazebo) clock if true',
     )
 
@@ -114,7 +118,7 @@ def generate_launch_description():
                         plugin='nav2_controller::ControllerServer',
                         name='controller_server',
                         parameters=[configured_params],
-                        # remappings=remappings + [('cmd_vel', 'cmd_vel_nav')],
+                        remappings=remappings,
                     ),
                     ComposableNode(
                         package='nav2_planner',
@@ -128,7 +132,7 @@ def generate_launch_description():
                         plugin='behavior_server::BehaviorServer',
                         name='behavior_server',
                         parameters=[configured_params],
-                        # remappings=remappings + [('cmd_vel', 'cmd_vel_nav')],
+                        remappings=remappings,
                     ),
                     ComposableNode(
                         package='nav2_bt_navigator',
@@ -142,7 +146,11 @@ def generate_launch_description():
                         plugin='nav2_lifecycle_manager::LifecycleManager',
                         name='lifecycle_manager_navigation',
                         parameters=[
-                            {'autostart': autostart, 'node_names': lifecycle_nodes}
+                            {
+                                'use_sim_time': ParameterValue(use_sim_time, value_type=bool),
+                                'autostart': ParameterValue(autostart, value_type=bool),
+                                'node_names': lifecycle_nodes,
+                            }
                         ],
                     ),
                 ],

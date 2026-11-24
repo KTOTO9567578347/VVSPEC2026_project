@@ -29,7 +29,7 @@ plugins:
     broadcast_tf: false
     origin: [0, 0, 0]
     range: 10.0
-    angle: {min: -3.14159, max: 3.14159, increment: 0.02617}
+    angle: {min: -3.14159265, max: 3.11541271, increment: 0.02617994}
     noise_std_dev: 0.0
     update_rate: 20.0
 

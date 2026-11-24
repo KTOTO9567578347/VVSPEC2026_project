@@ -61,6 +61,7 @@ RUN . $ROS_ROOT/setup.sh \
         uri: https://github.com/SteveMacenski/slam_toolbox-release.git\n\
         version: release/jazzy/slam_toolbox/2.8.3-1\n\
     " | vcs import src \
+    && sed -i 's/\r$//' slam-toolbox.patch \
     && (cd src/slam_toolbox && git apply ../../slam-toolbox.patch) \
     && rosdep update \
     && apt update \
@@ -118,15 +119,18 @@ RUN git clone --recurse-submodules -b v1.66.0 --depth 1 --shallow-submodules htt
 
 # Build the Jazzy-compatible ROS 2 Flatland integration from OpenRobOps.
 # Its pinned submodule points to the official avidbots/flatland ROS 2 branch.
+COPY docker/flatland-laser-inf.patch /tmp/flatland-laser-inf.patch
 RUN git clone https://github.com/OpenRobOps/sim-flatland.git /tmp/sim-flatland \
     && git -C /tmp/sim-flatland fetch --depth 1 origin 0c4d0f441947dc1624efd132539d7b16158e1e31 \
     && git -C /tmp/sim-flatland checkout --detach FETCH_HEAD \
-    && git -C /tmp/sim-flatland submodule update --init --depth 1 \
+    && git -C /tmp/sim-flatland submodule update --init \
     && cd /tmp/sim-flatland/third_party/flatland \
     && for patch in /tmp/sim-flatland/patches/flatland/000[1-9]-*.patch /tmp/sim-flatland/patches/flatland/0010-*.patch /tmp/sim-flatland/patches/flatland/0013-*.patch /tmp/sim-flatland/patches/flatland/0016-*.patch; do \
         git apply --whitespace=nowarn "$patch"; \
     done \
-    && rm -rf .git \
+    && sed -i 's/\r$//' /tmp/flatland-laser-inf.patch \
+    && git apply --whitespace=nowarn /tmp/flatland-laser-inf.patch \
+    && rm -rf .git /tmp/flatland-laser-inf.patch \
     && cd /tmp \
     && git clone --branch v2.3.1 --depth 1 https://github.com/erincatto/box2d.git \
     && cd /tmp/box2d/Box2D/Build \
@@ -137,8 +141,9 @@ RUN git clone https://github.com/OpenRobOps/sim-flatland.git /tmp/sim-flatland \
     && make install \
     && cd /tmp/sim-flatland/third_party/flatland \
     && . $ROS_ROOT/setup.sh \
+    && apt update \
     && rosdep update \
-    && rosdep install --from-paths . --ignore-src -r -y --skip-keys box2d-dev \
+    && rosdep install --from-paths flatland_msgs flatland_server flatland_plugins --ignore-src -r -y --skip-keys box2d-dev \
     && colcon build --merge-install --install-base /opt/ros/$ROS_DISTRO \
         --packages-select flatland_msgs flatland_server flatland_plugins \
         --cmake-args -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF \
@@ -148,7 +153,7 @@ RUN git clone https://github.com/OpenRobOps/sim-flatland.git /tmp/sim-flatland \
 # Setup .bashrc
 WORKDIR /src
 RUN echo '\
-export LD_LIBRARY_PATH=$ROS_ROOT/lib/$(gcc -dumpmachine)\n\
+export LD_LIBRARY_PATH=$ROS_ROOT/lib/$(gcc -dumpmachine):${LD_LIBRARY_PATH}\n\
 source $ROS_ROOT/setup.bash\n\
 LOCAL_SETUP="/src/install/setup.bash";\n\
 if [ -f "$LOCAL_SETUP" ]; then source $LOCAL_SETUP; fi\n\

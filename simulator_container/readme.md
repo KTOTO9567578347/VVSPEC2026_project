@@ -29,16 +29,16 @@ ros2 launch main demo.yaml
 
 ## Запуск режимов
 
-Статическая карта с AMCL:
+Статическая карта с AMCL (поддерживается `false`/`False` и `true`/`True`):
 
 ```bash
-ros2 launch main demo.yaml use_slam:=False
+ros2 launch main demo.yaml use_slam:=false
 ```
 
 SLAM вместо статической карты и AMCL:
 
 ```bash
-ros2 launch main demo.yaml use_slam:=True
+ros2 launch main demo.yaml use_slam:=true
 ```
 
 Проверить основные топики Flatland:
@@ -50,12 +50,21 @@ ros2 topic hz /scan
 ros2 topic echo /tf --once
 ```
 
-## Foxglove
+## Телеметрия (`grpc_bridge`)
 
-В отдельном терминале внутри контейнера:
+В отдельном терминале внутри контейнера из корня workspace (`/src`, где лежит `config.json`) для отправки телеметрии в `backend_ml` (`localhost:50051`):
 
 ```bash
-ros2 launch foxglove_bridge foxglove_bridge_launch.xml port:=8765 address:=0.0.0.0
+ros2 run grpc_bridge grpc_bridge_node
+```
+
+## Foxglove
+
+`ros2 launch main demo.yaml` уже поднимает `foxglove_bridge` на `ws://localhost:8765`.
+Отдельный запуск нужен только если вы стартуете `bringup_launch.py` напрямую (параллельный запуск вместе с `demo.yaml` упадёт из-за занятого порта `8765`):
+
+```bash
+ros2 launch foxglove_bridge foxglove_bridge_launch.xml port:=8765 address:=0.0.0.0 use_sim_time:=true
 ```
 
 ## Пересборка и остановка
