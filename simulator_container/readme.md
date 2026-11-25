@@ -2,7 +2,16 @@
 
 Проект использует [Flatland](https://github.com/OpenRobOps/sim-flatland) вместо `nav2_loopback_sim`. Flatland публикует `/odom`, `/scan` и TF; Nav2 использует AMCL для локализации по статической карте или SLAM, если включён режим SLAM.
 
-## Быстрый запуск
+## Отправка данных по GRPC
+
+ros2 run grpc_bridge grpc_bridge_node config.json
+
+## Пуск болванки (езда по синусоиде)
+
+Внутри контейнера:
+python3 ./utils/mock_node.py 
+
+## Быстрый запуск с симулятором (Не работает корректно)
 
 1. Соберите и запустите контейнер:
 

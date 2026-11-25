@@ -55,7 +55,7 @@ def load_settings() -> Settings:
     classifier_path = Path(
         os.getenv(
             "CLASSIFIER_PATH",
-            str(Path(__file__).resolve().parents[1] / "services" / "classifier.pkl"),
+            str(Path(__file__).resolve().parents[1] / "services" / "models" / "kinematik_models.pkl"),
         )
     )
     return Settings(
