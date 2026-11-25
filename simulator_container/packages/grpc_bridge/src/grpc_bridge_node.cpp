@@ -237,9 +237,21 @@ void grpc_subscriber::process_message<nav_msgs::msg::Odometry>(const std::string
     last_odom_angular_z_ = msg->twist.twist.angular.z;
 }
 
-int main(int argc, char * argv[]){
+int main(int argc, char * argv[]) {
     rclcpp::init(argc, argv);
-    rclcpp::spin(std::make_shared<grpc_subscriber>("config.json"));
+
+    std::vector<std::string> clean_args = rclcpp::remove_ros_arguments(argc, argv);
+
+    if (clean_args.size() < 2) {
+        RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Ошибка: не указан путь к json-файлу!");
+        RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Использование: ros2 run <package_name> <node_name> <путь_к_json>");
+        rclcpp::shutdown();
+        return 1;
+    }
+
+    std::string config_path = clean_args[1];
+
+    rclcpp::spin(std::make_shared<grpc_subscriber>(config_path));
     rclcpp::shutdown();
     return 0;
 }

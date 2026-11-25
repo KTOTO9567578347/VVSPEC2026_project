@@ -1,0 +1,13 @@
+diff --git a/flatland_plugins/src/laser.cpp b/flatland_plugins/src/laser.cpp
+index e2f7b1a..9c4d2e0 100644
+--- a/flatland_plugins/src/laser.cpp
++++ b/flatland_plugins/src/laser.cpp
+@@ -180,7 +180,7 @@ void Laser::ComputeLaserRanges() {
+                                                  laser_point);
+ 
+           if (!cb.did_hit_) {
+-            return std::make_pair<double, double>(NAN, 0);
++            return std::make_pair<double, double>(std::numeric_limits<double>::infinity(), 0);
+           } else {
+             return std::make_pair<double, double>(cb.fraction_ * this->range_,
+                                                   cb.intensity_);

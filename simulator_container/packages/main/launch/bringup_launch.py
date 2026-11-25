@@ -9,12 +9,13 @@ from launch.actions import (
     IncludeLaunchDescription,
     SetEnvironmentVariable,
 )
-from launch.conditions import IfCondition
+from launch.conditions import IfCondition, UnlessCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import LaunchConfiguration, PythonExpression
+from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node, SetParameter
 from launch_ros.actions import PushROSNamespace
 from launch_ros.descriptions import ParameterFile
+from launch_ros.parameter_descriptions import ParameterValue
 from nav2_common.launch import ReplaceString, RewrittenYaml
 
 
@@ -29,6 +30,7 @@ def generate_launch_description():
     namespace = LaunchConfiguration('namespace')
     use_namespace = LaunchConfiguration('use_namespace')
     use_slam = LaunchConfiguration('use_slam')
+    world_path = LaunchConfiguration('world_path')
     map_yaml_file = LaunchConfiguration('map')
     use_sim_time = LaunchConfiguration('use_sim_time')
     params_file = LaunchConfiguration('params_file')
@@ -59,7 +61,7 @@ def generate_launch_description():
         RewrittenYaml(
             source_file=params_file,
             root_key=namespace,
-            param_rewrites={},
+            param_rewrites={'use_sim_time': use_sim_time},
             convert_types=True,
         ),
         allow_substs=True,
@@ -83,10 +85,16 @@ def generate_launch_description():
         'use_slam', default_value='False', description='Whether run a SLAM'
     )
 
+    declare_world_path_cmd = DeclareLaunchArgument(
+        'world_path',
+        default_value=os.path.join(bringup_dir, 'worlds', 'maze.world.yaml'),
+        description='Full path to Flatland world yaml file to load',
+    )
+
     declare_map_yaml_cmd = DeclareLaunchArgument(
         'map',
-        default_value=os.path.join(bringup_dir, "maps", "tb3_sandbox.yaml"),
-        description='Full path to map yaml file to load'
+        default_value=os.path.join(bringup_dir, 'maps', 'maze.yaml'),
+        description='Full path to map yaml file to load',
     )
 
     declare_use_sim_time_cmd = DeclareLaunchArgument(
@@ -126,6 +134,7 @@ def generate_launch_description():
     # Specify the actions
     bringup_cmd_group = GroupAction(
         [
+            SetParameter('use_sim_time', use_sim_time),
             PushROSNamespace(condition=IfCondition(use_namespace), namespace=namespace),
             Node(
                 condition=IfCondition(use_composition),
@@ -154,13 +163,13 @@ def generate_launch_description():
         ]
     )
 
-    loopback_sim_cmd = IncludeLaunchDescription(
+    flatland_sim_cmd = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
-            os.path.join(launch_dir, 'loopback_sim_launch.py')
+            os.path.join(launch_dir, 'flatland_sim_launch.py')
         ),
         launch_arguments={
-            'params_file': params_file,
-            'use_slam': use_slam,
+            'world_path': world_path,
+            'use_sim_time': use_sim_time,
         }.items(),
     )
 
@@ -168,7 +177,7 @@ def generate_launch_description():
         actions=[
             SetParameter('use_sim_time', use_sim_time),
             Node(
-                condition=IfCondition(PythonExpression(['not ', use_slam])),
+                condition=UnlessCondition(use_slam),
                 package='nav2_map_server',
                 executable='map_server',
                 name='map_server',
@@ -189,6 +198,15 @@ def generate_launch_description():
                 parameters=[configured_params, {'yaml_filename': map_yaml_file}],
                 remappings=remappings + [('map', '/map/sim')],
             ),
+            Node(
+                condition=UnlessCondition(use_slam),
+                package='nav2_amcl',
+                executable='amcl',
+                name='amcl',
+                output='screen',
+                parameters=[configured_params],
+                remappings=remappings,
+            ),
             IncludeLaunchDescription(
                 PythonLaunchDescriptionSource(slam_launch_path),
                 condition=IfCondition(use_slam),
@@ -198,13 +216,28 @@ def generate_launch_description():
                 }.items(),
             ),
             Node(
+                condition=UnlessCondition(use_slam),
+                package='nav2_lifecycle_manager',
+                executable='lifecycle_manager',
+                name='lifecycle_manager_localization',
+                output='screen',
+                parameters=[{
+                    'use_sim_time': ParameterValue(use_sim_time, value_type=bool),
+                    'autostart': ParameterValue(autostart, value_type=bool),
+                    'node_names': ['map_server', 'amcl'],
+                }],
+            ),
+            Node(
+                condition=IfCondition(use_slam),
                 package='nav2_lifecycle_manager',
                 executable='lifecycle_manager',
                 name='lifecycle_manager_map_server',
                 output='screen',
-                parameters=[
-                    configured_params,
-                    {'autostart': autostart}, {'node_names': ['map_server']}],
+                parameters=[{
+                    'use_sim_time': ParameterValue(use_sim_time, value_type=bool),
+                    'autostart': ParameterValue(autostart, value_type=bool),
+                    'node_names': ['map_server'],
+                }],
             ),
         ]
     )
@@ -219,6 +252,7 @@ def generate_launch_description():
     ld.add_action(declare_namespace_cmd)
     ld.add_action(declare_use_namespace_cmd)
     ld.add_action(declare_use_slam_cmd)
+    ld.add_action(declare_world_path_cmd)
     ld.add_action(declare_map_yaml_cmd)
     ld.add_action(declare_use_sim_time_cmd)
     ld.add_action(declare_params_file_cmd)
@@ -229,7 +263,7 @@ def generate_launch_description():
 
     # Add the actions to launch all of the navigation nodes
     ld.add_action(start_map_server)
-    ld.add_action(loopback_sim_cmd)
+    ld.add_action(flatland_sim_cmd)
     ld.add_action(bringup_cmd_group)
 
     return ld
